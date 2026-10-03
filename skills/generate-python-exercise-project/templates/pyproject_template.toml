@@ -1,0 +1,21 @@
+[project]
+name = "{{PROJECT_NAME}}"
+version = "0.1.0"
+description = "{{PROJECT_DESCRIPTION}}"
+authors = [{ name = "Learner" }]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "rich>=13.7.0",
+]
+
+[project.scripts]
+app = "app:main"
+test = "app:run_tests_cli"
+
+[tool.poetry]
+packages = [{ include = "*.py" }]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
