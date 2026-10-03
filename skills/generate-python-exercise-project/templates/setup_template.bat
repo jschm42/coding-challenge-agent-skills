@@ -12,8 +12,9 @@ if %ERRORLEVEL% EQU 0 (
         echo.
         echo ========================================================
         echo   Setup completed successfully with Poetry!
-        echo   - Run app:   poetry run app
-        echo   - Run tests: poetry run test
+        echo   - Run TUI dashboard:   poetry run tui
+        echo   - Run learning app:    poetry run app
+        echo   - Run tests:           poetry run test
         echo ========================================================
         exit /b 0
     ) else (
@@ -37,8 +38,9 @@ if %ERRORLEVEL% EQU 0 (
     echo.
     echo ========================================================
     echo   Setup completed successfully with pip!
-    echo   - Run app:   python app.py
-    echo   - Run tests: python app.py --test
+    echo   - Run TUI dashboard:   python tui.py
+    echo   - Run learning app:    python app.py
+    echo   - Run tests:           python tui.py --test
     echo ========================================================
     exit /b 0
 ) else (

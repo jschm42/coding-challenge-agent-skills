@@ -17,11 +17,29 @@ Rather than writing exercises by hand, these skills teach your AI agent how to b
 
 ---
 
+## 🖥️ Interactive Rich TUI Dashboard
+
+Every generated challenge includes a dedicated, terminal-based dashboard (`tui.py`) built with [Rich](https://github.com/Textualize/rich). It gives learners an engaging, feedback-driven practice environment right inside their terminal:
+
+![Interactive Rich TUI Dashboard](./assets/tui_dashboard.svg)
+
+### 🌟 Dashboard Features
+* **📊 Visual Progress & Metrics:** Real-time Unicode progress bar, completion percentage, and execution duration per task.
+* **🔍 Clean Diagnostic Test Parsing:** Custom `TestResult` parser translates raw test failures into friendly, actionable diagnostic panels with exact file locations and failure reasons.
+* **💡 Multi-Tier Progressive Hints:** View step-by-step hints (`--hint <id>` or menu option `[4]`) without giving away the full answer.
+* **📖 Integrated Reference Solutions:** Read syntax-highlighted solutions and concept explanations directly in the terminal (`--solution <id>` or menu option `[5]`).
+* **🚀 Unified Poetry & CLI Integration:**
+  * `poetry run app`: Launches the student's executable application (e.g. calculator, CLI tool).
+  * `poetry run tui`: Launches the interactive challenge dashboard.
+  * `poetry run test`: Runs the automated test suite with diagnostic reporting.
+
+---
+
 ## 📚 Skills Catalog
 
 | Skill Name | Scope | Compatible Agents | Description |
 | :--- | :--- | :--- | :--- |
-| [**generate-python-exercise-project**](./skills/generate-python-exercise-project/) | `Python` | Antigravity, Claude Code, Cursor, Windsurf, Aider | Scaffolds interactive Python coding challenges with Rich TUI, automated test parsing, multi-tier hints, and clean solutions. |
+| [**generate-python-exercise-project**](./skills/generate-python-exercise-project/) | `Python` | Antigravity, Claude Code, Cursor, Windsurf, Aider | Scaffolds interactive Python exercise challenges and executable learning applications (e.g. calculator, CLI tools) with Rich TUI dashboard, automated test parsing, hints, and solutions. |
 
 *(More language generators coming soon! Contributions welcome!)*
 

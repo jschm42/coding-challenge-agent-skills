@@ -11,7 +11,9 @@ dependencies = [
 
 [project.scripts]
 app = "app:main"
-test = "app:run_tests_cli"
+tui = "tui:main"
+challenge = "tui:main"
+test = "tui:run_tests_cli"
 
 [tool.poetry]
 packages = [{ include = "*.py" }]
