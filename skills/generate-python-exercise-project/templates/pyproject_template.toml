@@ -10,14 +10,15 @@ dependencies = [
 ]
 
 [project.scripts]
-app = "app:main"
+app = "app.main:main"
 tui = "tui:main"
 challenge = "tui:main"
 test = "tui:run_tests_cli"
 
 [tool.poetry]
-packages = [{ include = "*.py" }]
+packages = [{ include = "app" }]
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+

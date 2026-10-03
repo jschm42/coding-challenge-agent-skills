@@ -35,6 +35,15 @@ if sys.platform == "win32":
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     os.system("")
 
+# Ensure project root, /app, and /test folders are on sys.path
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+for _sub in ("app", "test", "tests"):
+    _p = os.path.join(ROOT_DIR, _sub)
+    if os.path.isdir(_p) and _p not in sys.path:
+        sys.path.insert(0, _p)
+
 # Rich Imports with Graceful Fallback
 try:
     from rich.console import Console
@@ -69,9 +78,13 @@ PROJECT_INTRO = (
     "• Stuck? View progressive hints or reference solutions directly from the menu!"
 )
 
-# Automatically identify primary source file under test (app.py or exercises.py)
-TARGET_MODULE = "app" if os.path.exists("app.py") and not os.path.exists("exercises.py") else ("exercises" if os.path.exists("exercises.py") else "app")
-TARGET_FILE = f"{TARGET_MODULE}.py"
+# Automatically identify primary source structure (app/ package, app.py, or exercises.py)
+HAS_APP_DIR = os.path.isdir(os.path.join(ROOT_DIR, "app"))
+HAS_TEST_DIR = os.path.isdir(os.path.join(ROOT_DIR, "test")) or os.path.isdir(os.path.join(ROOT_DIR, "tests"))
+
+TARGET_MODULE = "app" if HAS_APP_DIR or os.path.exists("app.py") else "exercises"
+TARGET_FILE = "app/main.py" if HAS_APP_DIR else f"{TARGET_MODULE}.py"
+
 
 TASKS: List[Dict[str, Any]] = [
     {
@@ -132,38 +145,87 @@ class ParsedTestResult(unittest.TestResult):
     def _extract_location(self, tb):
         frames = traceback.extract_tb(tb)
         for frame in reversed(frames):
-            basename = os.path.basename(frame.filename)
-            if basename in ("exercises.py", "test_exercises.py", "app.py", "test_app.py"):
-                self.location = f"{basename}:{frame.lineno} in {frame.name}()"
-                return
+            norm_path = os.path.abspath(frame.filename)
+            if ROOT_DIR in norm_path:
+                rel = os.path.relpath(norm_path, ROOT_DIR).replace("\\", "/")
+                # Prefer project source files (in app/, test/, or root)
+                if (
+                    rel.startswith("app/")
+                    or rel.startswith("test/")
+                    or rel.startswith("tests/")
+                    or rel in ("exercises.py", "app.py", "test_exercises.py", "test_app.py")
+                ):
+                    self.location = f"{rel}:{frame.lineno} in {frame.name}()"
+                    return
         if frames:
             last = frames[-1]
             self.location = f"{os.path.basename(last.filename)}:{last.lineno} in {last.name}()"
 
 
-def get_test_case_class():
-    """Dynamically discover the test case class in test_app.py or test_exercises.py."""
-    test_mod = None
-    for mod_name in ("test_app", "test_exercises"):
-        try:
-            test_mod = __import__(mod_name)
-            break
-        except ImportError:
-            continue
-    if not test_mod:
-        raise RuntimeError("No test module (test_app.py or test_exercises.py) found")
+def discover_test_modules() -> List[Any]:
+    """Dynamically discover and import all test modules in test/, tests/, or current directory."""
+    modules = []
+    search_dirs = []
+    for d in ("test", "tests", "."):
+        path = os.path.join(ROOT_DIR, d)
+        if os.path.isdir(path) and path not in search_dirs:
+            search_dirs.append(path)
 
-    for _, obj in inspect.getmembers(test_mod, inspect.isclass):
-        if issubclass(obj, unittest.TestCase) and obj is not unittest.TestCase:
-            return obj
-    raise RuntimeError(f"No unittest.TestCase subclass found in {test_mod.__name__}.py")
+    import importlib.util
+    for sdir in search_dirs:
+        try:
+            entries = sorted(os.listdir(sdir))
+        except OSError:
+            continue
+        for fname in entries:
+            if fname.endswith(".py") and (fname.startswith("test_") or fname.endswith("_test.py")):
+                mod_name = fname[:-3]
+                file_path = os.path.join(sdir, fname)
+                try:
+                    if mod_name in sys.modules:
+                        modules.append(sys.modules[mod_name])
+                    else:
+                        spec = importlib.util.spec_from_file_location(mod_name, file_path)
+                        if spec and spec.loader:
+                            mod = importlib.util.module_from_spec(spec)
+                            sys.modules[mod_name] = mod
+                            spec.loader.exec_module(mod)
+                            modules.append(mod)
+                except Exception:
+                    pass
+    return modules
+
+
+def get_all_test_case_classes() -> List[type]:
+    """Retrieve all unittest.TestCase classes across all discovered test modules."""
+    test_classes = []
+    for mod in discover_test_modules():
+        for _, obj in inspect.getmembers(mod, inspect.isclass):
+            if issubclass(obj, unittest.TestCase) and obj is not unittest.TestCase:
+                if obj not in test_classes:
+                    test_classes.append(obj)
+    return test_classes
+
+
+def get_test_case_for_method(test_method_name: str) -> type:
+    """Find the TestCase class that defines or includes the specified test method."""
+    classes = get_all_test_case_classes()
+    for cls in classes:
+        if hasattr(cls, test_method_name):
+            return cls
+    if classes:
+        return classes[0]
+    raise RuntimeError("No unittest.TestCase subclass found in test/ directory or current directory.")
 
 
 def run_single_test(test_method_name: str) -> dict:
     """Execute a single test method and parse detailed execution metrics and errors."""
-    test_cls = get_test_case_class()
+    test_cls = get_test_case_for_method(test_method_name)
     suite = unittest.TestSuite()
-    suite.addTest(test_cls(test_method_name))
+    try:
+        suite.addTest(test_cls(test_method_name))
+    except Exception:
+        suite.addTest(test_cls())
 
     result = ParsedTestResult()
     start_time = time.perf_counter()
@@ -229,7 +291,13 @@ def print_banner(include_intro: bool = True):
     if include_intro and PROJECT_INTRO:
         lines.append(f"{PROJECT_INTRO}\n")
 
-    if os.path.exists("app.py"):
+    if HAS_APP_DIR:
+        lines.append(
+            "[dim]Solve tasks in [/dim][bold yellow]app/[/bold yellow][dim] | "
+            "Run app: [/dim][bold green]poetry run app[/bold green][dim] | "
+            "Track progress: [/dim][bold cyan]poetry run tui[/bold cyan]"
+        )
+    elif os.path.exists("app.py"):
         lines.append(
             "[dim]Solve tasks in [/dim][bold yellow]app.py[/bold yellow][dim] | "
             "Run app: [/dim][bold green]poetry run app[/bold green][dim] | "
@@ -339,6 +407,72 @@ def print_success_trophy():
     console.print(Panel(msg, border_style="green", box=box.DOUBLE, expand=False))
 
 
+def find_target_symbol(task: dict):
+    """Find the target function or class across app package/submodules or exercises."""
+    name = task.get("name")
+    if not name:
+        return None, None, TARGET_FILE
+
+    candidate_modules = []
+
+    # 1. Check if task specifies an explicit module (e.g. "app.operations" or "operations")
+    if "module" in task:
+        try:
+            mod = __import__(task["module"], fromlist=[task["module"].split(".")[-1]])
+            candidate_modules.append(mod)
+        except Exception:
+            pass
+
+    # 2. Check app package and submodules inside app/
+    app_dir = os.path.join(ROOT_DIR, "app")
+    if os.path.isdir(app_dir):
+        try:
+            import app
+            candidate_modules.append(app)
+        except Exception:
+            pass
+
+        try:
+            for fname in sorted(os.listdir(app_dir)):
+                if fname.endswith(".py") and not fname.startswith("__"):
+                    sub_name = fname[:-3]
+                    try:
+                        sub_mod = __import__(f"app.{sub_name}", fromlist=[sub_name])
+                        candidate_modules.append(sub_mod)
+                    except Exception:
+                        try:
+                            sub_mod = __import__(sub_name)
+                            candidate_modules.append(sub_mod)
+                        except Exception:
+                            pass
+        except OSError:
+            pass
+
+    # 3. Check exercises or root app
+    for mod_name in ("exercises", "app"):
+        try:
+            mod = __import__(mod_name)
+            if mod not in candidate_modules:
+                candidate_modules.append(mod)
+        except ImportError:
+            pass
+
+    for mod in candidate_modules:
+        if hasattr(mod, name):
+            target = getattr(mod, name)
+            try:
+                src_file = inspect.getsourcefile(target) or getattr(mod, "__file__", "")
+                if src_file:
+                    rel_file = os.path.relpath(src_file, ROOT_DIR).replace("\\", "/")
+                else:
+                    rel_file = f"{mod.__name__}.py"
+            except Exception:
+                rel_file = f"{mod.__name__}.py"
+            return target, mod, rel_file
+
+    return None, None, TARGET_FILE
+
+
 def show_task_detail(task_id: int):
     """Show comprehensive details for a specific task including docstring, source, and parsed test error."""
     task = next((t for t in TASKS if t["id"] == task_id), None)
@@ -346,17 +480,9 @@ def show_task_detail(task_id: int):
         console.print(f"[bold red]Invalid task ID: {task_id}[/bold red]")
         return
 
-    target_mod = None
-    for mod_name in (TARGET_MODULE, "app", "exercises"):
-        try:
-            target_mod = __import__(mod_name)
-            break
-        except ImportError:
-            continue
-
-    fn = getattr(target_mod, task["name"], None) if target_mod else None
+    fn, target_mod, file_label = find_target_symbol(task)
     doc = inspect.getdoc(fn) if fn else "No docstring available."
-    source_code = inspect.getsource(fn) if fn else "# Source code unavailable."
+    source_code = inspect.getsource(fn) if fn else f"# Source code unavailable for {task['name']}."
 
     res = run_single_test(task["test"])
 
@@ -376,7 +502,6 @@ def show_task_detail(task_id: int):
     console.print(Panel(doc, title="[bold yellow]Instructions & Specification[/bold yellow]", border_style="yellow", box=box.ROUNDED))
 
     # Current Source Code
-    file_label = f"{target_mod.__name__}.py" if target_mod else TARGET_FILE
     syntax = Syntax(source_code, "python", theme="monokai", line_numbers=True)
     console.print(Panel(syntax, title=f"[bold green]Current Implementation in {file_label}[/bold green]", border_style="green", box=box.ROUNDED))
 
@@ -506,12 +631,13 @@ def interactive_menu():
         console.print(" [bold][4][/bold] View Extended Hints for a Task")
         console.print(" [bold][5][/bold] View Reference Solution for a Task (from solutions.md)")
         console.print(" [bold][6][/bold] Run Next Pending Task")
-        if os.path.exists("app.py"):
-            console.print(" [bold][7][/bold] Run Learning Application (app.py)")
+        has_app = HAS_APP_DIR or os.path.exists("app.py")
+        if has_app:
+            console.print(" [bold][7][/bold] Run Learning Application (poetry run app)")
         console.print(" [bold][0][/bold] Exit")
 
         choices = ["0", "1", "2", "3", "4", "5", "6"]
-        if os.path.exists("app.py"):
+        if has_app:
             choices.append("7")
 
         try:
@@ -549,15 +675,29 @@ def interactive_menu():
             else:
                 print_success_trophy()
         elif choice == "7":
-            console.print("\n[bold cyan]Launching application (app.py)...[/bold cyan]\n")
+            console.print("\n[bold cyan]Launching learning application...[/bold cyan]\n")
             try:
-                import app
-                if hasattr(app, "main"):
-                    app.main()
-                else:
-                    console.print("[yellow]app.py has no main() function.[/yellow]")
+                launched = False
+                try:
+                    from app.main import main as app_main
+                    app_main()
+                    launched = True
+                except (ImportError, AttributeError):
+                    pass
+
+                if not launched:
+                    try:
+                        import app
+                        if hasattr(app, "main"):
+                            app.main()
+                            launched = True
+                    except Exception:
+                        pass
+
+                if not launched:
+                    console.print("[yellow]Could not find main() in app/main.py or app.py.[/yellow]")
             except Exception as e:
-                console.print(f"[bold red]Error running app.py:[/bold red] {e}")
+                console.print(f"[bold red]Error running application:[/bold red] {e}")
         elif choice == "0":
             console.print("\n[green]Session ended. Happy coding![/green]")
             break

@@ -1,6 +1,6 @@
 # 🐍 Python Challenge & App Generator (`generate-python-exercise-project`)
 
-An agentic skill that automatically generates complete, interactive, test-driven Python coding challenge projects and executable learning applications featuring a [Rich](https://github.com/Textualize/rich) TUI dashboard, progressive test diagnostics, automated setup scripts, and reference solutions.
+An agentic skill that automatically generates complete, interactive, test-driven Python coding challenge projects and executable learning applications featuring a [Rich](https://github.com/Textualize/rich) TUI dashboard, progressive test diagnostics, automated setup scripts, reference solutions, and Clean Code architecture (`/app` and `/test` folders).
 
 ---
 
@@ -13,22 +13,38 @@ Invoke this skill in Antigravity or any compatible agent by prompting or using t
 ```
 
 Or simply ask naturally:
-> *"Create an interactive Python challenge for a calculator app where I can build and run app.py with poetry run app."*
+> *"Create an interactive Python challenge for a calculator app with clean code structure in /app and tests in /test."*
 > *"Generate an interactive Python challenge on list comprehension with 10 exercises."*
 
 ---
 
-## 📦 Supported Project Modes
+## 📦 Clean Code Project Structure
 
-### 1. Executable Application Challenge (e.g. Calculator, CLI Tool, Mini-Game)
-- **`app.py`**: The runnable learning application with `main()`, interactive command loop/CLI, and modular stubs for the learner to implement.
-- **`test_app.py`**: Automated unit tests validating the application's core functions.
-- **`tui.py`**: Rich TUI challenge dashboard & progress tracker (`poetry run tui`).
+### 1. Dedicated `/app` & `/test` Subdirectories
+- **`/app` Package**: All learning application source code resides in the `app/` directory (`app/__init__.py`, `app/main.py`).
+  - For complex projects, domain logic is modularized across multiple files according to Clean Code principles (e.g., `app/operations.py`, `app/models.py`, `app/parser.py`).
+- **`/test` Directory**: All automated unit tests reside in the `test/` directory (`test/__init__.py`).
+  - Tests can be split across multiple test files matching domain modules (e.g., `test/test_operations.py`, `test/test_parser.py`) or in a unified `test/test_app.py`.
+- **`tui.py` Dashboard**: Rich TUI challenge runner at the project root (`poetry run tui`). Automatically discovers tests in `/test` and inspects symbols across all `/app` modules.
 
-### 2. Exercise Collection (e.g. Dictionaries, Algorithms, OOP)
-- **`exercises.py`**: Standalone function stubs with `NotImplementedError`.
-- **`test_exercises.py`**: Unittest suite testing edge and standard cases.
-- **`tui.py`**: Rich TUI challenge dashboard & progress tracker.
+### Project Layout
+```text
+<project-root>/
+├── app/                        # Learning application package
+│   ├── __init__.py             # Package marker & public exports
+│   ├── main.py                 # Application entry point with CLI / REPL loop & main()
+│   ├── <module1>.py            # Domain logic stubs (e.g. operations.py)
+│   └── <module2>.py            # (Optional) additional domain files (e.g. models.py)
+├── test/                       # Unit test suite directory
+│   ├── __init__.py             # Test package marker
+│   ├── test_<module1>.py       # Modular tests for module1
+│   └── test_<module2>.py       # (Optional) additional modular test files
+├── tui.py                      # Interactive Rich TUI dashboard & test runner
+├── solutions.md                # Comprehensive reference solutions & explanations
+├── pyproject.toml              # Modern Poetry configuration (PEP 621)
+├── setup.bat / setup.sh        # Quick setup scripts (Poetry install + rich fallback)
+└── README.md                   # Project documentation & quickstart
+```
 
 ---
 
@@ -42,7 +58,7 @@ Or simply ask naturally:
 
 | Action | Poetry Command | Direct Python Command |
 | :--- | :--- | :--- |
-| **Run Executable App** | `poetry run app` | `python app.py` |
+| **Run Executable App** | `poetry run app` | `python -m app.main` |
 | **Launch TUI Dashboard** | `poetry run tui` | `python tui.py` |
 | **Run All Tests** | `poetry run test` | `python tui.py --test` |
 | **Quick Progress Check** | `poetry run tui --check` | `python tui.py --check` |
@@ -55,8 +71,9 @@ Or simply ask naturally:
 ## 📂 Included Templates
 
 The skill comes pre-packaged with robust templates in `templates/`:
-- `templates/tui_template.py`: The complete Rich TUI engine with unittest result interception, progress bar, hints, and reference solution viewer.
-- `templates/app_template.py`: Starter template for an executable CLI application with interactive REPL loop and `main()` entrypoint.
-- `templates/pyproject_template.toml`: Configured Poetry project file defining `app`, `tui`, and `test` scripts.
+- `templates/tui_template.py`: The complete Rich TUI engine with multi-file test discovery, task inspection across `/app` modules, hints, and reference solution viewer.
+- `templates/app_template.py`: Starter template for an executable CLI application (`app/main.py`) with interactive REPL loop and `main()` entrypoint.
+- `templates/pyproject_template.toml`: Configured Poetry project file defining `app` (`app.main:main`), `tui`, and `test` scripts.
 - `templates/setup_template.bat`: Windows setup script.
 - `templates/setup_template.sh`: Unix/macOS setup script.
+

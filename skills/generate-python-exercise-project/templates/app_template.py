@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """
-Executable Learning Application Template
-========================================
+Executable Learning Application Template (app/main.py)
+======================================================
 Interactive application entry point (e.g., Calculator, CLI tool, or interactive app).
+For Clean Code structure, domain functions can also be extracted into modular files
+under app/ (e.g., app/operations.py) and imported here.
 
 Usage:
     poetry run app
 or:
-    python app.py
+    python app/main.py
 """
 
 import sys
