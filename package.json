@@ -1,0 +1,40 @@
+{
+  "name": "coding-challenge-agent-skills",
+  "version": "1.0.0",
+  "description": "Modular AI Agent skills for scaffolding interactive coding challenges and exercise projects",
+  "type": "module",
+  "main": "bin/cli.js",
+  "bin": {
+    "coding-challenge-agent-skills": "./bin/cli.js",
+    "cc-skills": "./bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "skills",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "node ./bin/cli.js",
+    "test": "python tests/test_skills_syntax.py"
+  },
+  "keywords": [
+    "agent-skills",
+    "antigravity",
+    "claude-code",
+    "cursor",
+    "windsurf",
+    "coding-challenges",
+    "education",
+    "python"
+  ],
+  "author": "Jean Schmitz",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jschm42/coding-challenge-agent-skills.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
